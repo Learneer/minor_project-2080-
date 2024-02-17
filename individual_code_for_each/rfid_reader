@@ -1,0 +1,85 @@
+//this code gives visual and auditory feedback to indicate that the rfid card is sucessfully scanned 
+//and stores the value of uid inthe uid variable which can be used to send the uid to server for further verificattion
+
+
+//pin connction 
+/*// Pin Connection
+SS/SDA:  D3
+SCK:     D5
+MOSI:    D7
+MISO:    D6
+IRQ:     Not Connected (Empty)
+GND:     GND
+RST:     D4
+3.3V:    3V3
+
+please download required library used
+*/
+
+
+
+
+
+
+
+//********************for esp32************
+#include <WiFi.h>
+#include <Wire.h>
+#include <MFRC522.h>
+
+#define SS_PIN 5
+#define RST_PIN 2
+#define BUZZER_PIN 15 // D8
+#define STATUS_LED 16 // D0
+
+MFRC522 mfrc522(SS_PIN, RST_PIN);
+
+unsigned long lastReadTime = 0;
+unsigned long delayBetweenReads = 5000; // 5 seconds delay
+
+void setup() {
+  Serial.begin(115200);//set same baud rate to display message in serial monitor 
+  SPI.begin();
+  mfrc522.PCD_Init();
+
+  pinMode(STATUS_LED, OUTPUT);
+  pinMode(BUZZER_PIN, OUTPUT);
+
+  digitalWrite(STATUS_LED, HIGH);
+  digitalWrite(BUZZER_PIN, LOW);
+}
+
+String readCardUID() {
+  String cardUID = "";
+
+  if (mfrc522.PICC_IsNewCardPresent() && mfrc522.PICC_ReadCardSerial()) {
+    for (byte i = 0; i < mfrc522.uid.size; i++) {
+      cardUID += String(mfrc522.uid.uidByte[i] < 0x10 ? "0" : "");
+      cardUID += String(mfrc522.uid.uidByte[i], HEX);
+    }
+
+    mfrc522.PICC_HaltA();
+    mfrc522.PCD_StopCrypto1();
+  }
+
+  return cardUID;
+}
+
+void loop() {
+  String uid = readCardUID();
+
+  if (uid.length() > 0) {//checks if the uid is valid or not
+    digitalWrite(STATUS_LED, LOW);
+    digitalWrite(BUZZER_PIN, HIGH);
+    delay(500);
+    digitalWrite(STATUS_LED, HIGH);
+    digitalWrite(BUZZER_PIN, LOW);
+
+    lastReadTime = millis();
+
+    Serial.println("Card UID: " + uid);
+    // Add code to send the UID data to a server here
+  }
+
+  // Add other non-blocking tasks here if needed
+}
